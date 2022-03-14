@@ -48,6 +48,9 @@ private:
 
   uint8_t zoneStates[zoneCount];
   ALARM_STATE alarmState;
+  ALARM_STATE newAlarmState;
+  uint32_t lastAlarmStateChange = 0;
+  const uint16_t alarmStateChangeBuffer = 1000;
   uint8_t alarmStateFlags;
 
   static const uint8_t userCount = 4;

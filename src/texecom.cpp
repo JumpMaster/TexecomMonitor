@@ -26,6 +26,12 @@ void Texecom::loop() {
     checkDigiOutputs();
   }
   checkSerial();
+
+  if (lastAlarmStateChange != 0 && millis() > (lastAlarmStateChange + alarmStateChangeBuffer)) {
+      lastAlarmStateChange = 0;
+      alarmState = newAlarmState;
+      alarmCallback(alarmState, alarmStateFlags);
+  }
 }
 
 void Texecom::checkDigiOutputs() {
@@ -38,7 +44,7 @@ void Texecom::checkDigiOutputs() {
     if (_state == LOW) {
       // Log.info("Pin Full Armed");
       changeDetected = true;
-      alarmState = ARMED_AWAY;
+      newAlarmState = ARMED_AWAY;
     }
   }
 
@@ -49,7 +55,7 @@ void Texecom::checkDigiOutputs() {
     if (_state == LOW) {
       // Log.info("Pin Part Armed");
       changeDetected = true;
-      alarmState = ARMED_HOME;
+      newAlarmState = ARMED_HOME;
     }
   }
 
@@ -60,7 +66,7 @@ void Texecom::checkDigiOutputs() {
         if (_state == LOW) {
             // Log.info("Pin Entry");
             changeDetected = true;
-            alarmState = ENTRY;
+            newAlarmState = ENTRY;
         }
     }
 
@@ -71,7 +77,7 @@ void Texecom::checkDigiOutputs() {
         if (_state == LOW) {
             // Log.info("Pin Exit");
             changeDetected = true;
-            alarmState = EXIT;
+            newAlarmState = EXIT;
         }
     }
 
@@ -82,7 +88,7 @@ void Texecom::checkDigiOutputs() {
         if (_state == LOW) {
             // Log.info("Pin Triggered");
             changeDetected = true;
-            alarmState = TRIGGERED;
+            newAlarmState = TRIGGERED;
         }
     }
 
@@ -134,7 +140,7 @@ void Texecom::checkDigiOutputs() {
 
 
     // If no pins are high state must be disarmed
-    if (alarmState != DISARMED &&
+    if (newAlarmState != DISARMED &&
             statePinFullArmed == HIGH &&
             statePinPartArmed == HIGH &&
             statePinEntry == HIGH &&
@@ -147,7 +153,7 @@ void Texecom::checkDigiOutputs() {
         // } else if (millis() > exitToDisarmTimeout) {
             // Log.info("No pin disarm timeout");
             changeDetected = true;
-            alarmState = DISARMED;
+            newAlarmState = DISARMED;
             // exitToDisarmTimeout = 0;
         // }
     }
@@ -155,7 +161,8 @@ void Texecom::checkDigiOutputs() {
     if (changeDetected) {
         // lastStateChange = millis();
         // updateAlarmState();
-        alarmCallback(alarmState, alarmStateFlags);
+        lastAlarmStateChange = millis();
+        //alarmCallback(alarmState, alarmStateFlags);
         /*
         Log.info("FA:%d PA:%d EN:%d EX:%d TR:%d AR:%d FP:%d AF:%d",
             statePinFullArmed,

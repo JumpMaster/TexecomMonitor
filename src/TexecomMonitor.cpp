@@ -87,12 +87,13 @@ void sendTelegrafMetrics() {
 
         char buffer[150];
         snprintf(buffer, sizeof(buffer),
-            "status,device=Texecom uptime=%d,resetReason=%d,firmware=\"%s\",memTotal=%ld,memFree=%ld",
+            "status,device=Texecom uptime=%d,resetReason=%d,firmware=\"%s\",memTotal=%ld,memFree=%ld,ipv4=\"%s\"",
             System.uptime(),
             System.resetReason(),
             System.version().c_str(),
             DiagnosticsHelper::getValue(DIAG_ID_SYSTEM_TOTAL_RAM),
-            DiagnosticsHelper::getValue(DIAG_ID_SYSTEM_USED_RAM)
+            DiagnosticsHelper::getValue(DIAG_ID_SYSTEM_USED_RAM),
+            WiFi.localIP().toString().c_str()
             );
         mqttClient.publish("telegraf/particle", buffer);
     }
