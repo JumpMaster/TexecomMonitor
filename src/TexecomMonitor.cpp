@@ -87,7 +87,7 @@ void sendTelegrafMetrics() {
 
         char buffer[150];
         snprintf(buffer, sizeof(buffer),
-            "status,device=Texecom uptime=%d,resetReason=%d,firmware=\"%s\",memTotal=%ld,memFree=%ld,ipv4=\"%s\"",
+            "status,device=Texecom uptime=%d,resetReason=%d,firmware=\"%s\",memTotal=%ld,memUsed=%ld,ipv4=\"%s\"",
             System.uptime(),
             System.resetReason(),
             System.version().c_str(),
