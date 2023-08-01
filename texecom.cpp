@@ -2,40 +2,45 @@
 
 #include "texecom.h"
 
-Texecom::Texecom(void (*alarmCallback)(ALARM_STATE, uint8_t), void (*zoneCallback)(uint8_t, uint8_t)) {
-  this->alarmCallback = alarmCallback;
-  this->zoneCallback = zoneCallback;
+Texecom::Texecom(void (*alarmCallback)(ALARM_STATE, uint8_t), void (*zoneCallback)(uint8_t, uint8_t))
+{
+    this->alarmCallback = alarmCallback;
+    this->zoneCallback = zoneCallback;
 }
 
-void Texecom::setup() {
-    texSerial.begin(19200, SERIAL_8N2);  // open serial communications
+void Texecom::setup()
+{
+    texSerial.begin(19200, SERIAL_8N2, RXD2, TXD2);  // open serial communications
 
-  pinMode(pinFullArmed, INPUT);
-  pinMode(pinPartArmed, INPUT);
-  pinMode(pinEntry, INPUT);
-  pinMode(pinExit, INPUT);
-  pinMode(pinTriggered, INPUT);
-  pinMode(pinArmFailed, INPUT);
-  pinMode(pinFaultPresent, INPUT);
-  pinMode(pinAreaReady, INPUT);
+    pinMode(pinFullArmed, INPUT);
+    pinMode(pinPartArmed, INPUT);
+    pinMode(pinEntry, INPUT);
+    pinMode(pinExit, INPUT);
+    pinMode(pinTriggered, INPUT);
+    pinMode(pinArmFailed, INPUT);
+    pinMode(pinFaultPresent, INPUT);
+    pinMode(pinAreaReady, INPUT);
 }
 
-void Texecom::loop() {
-  if (millis() > nextPinCheck) {
-    nextPinCheck = millis() + pinCheckFrequency;
-    checkDigiOutputs();
-  }
-  checkSerial();
+void Texecom::loop()
+{
+    if (millis() > nextPinCheck)
+    {
+        nextPinCheck = millis() + pinCheckFrequency;
+        checkDigiOutputs();
+    }
+    checkSerial();
 
-  if (lastAlarmStateChange != 0 && millis() > (lastAlarmStateChange + alarmStateChangeBuffer)) {
-      lastAlarmStateChange = 0;
-      alarmState = newAlarmState;
-      alarmCallback(alarmState, alarmStateFlags);
-  }
+    if (lastAlarmStateChange != 0 && millis() > (lastAlarmStateChange + alarmStateChangeBuffer))
+    {
+        lastAlarmStateChange = 0;
+        alarmState = newAlarmState;
+        alarmCallback(alarmState, alarmStateFlags);
+    }
 }
 
-void Texecom::checkDigiOutputs() {
-
+void Texecom::checkDigiOutputs()
+{
   bool changeDetected = false;
   bool _state = digitalRead(pinFullArmed);
 
@@ -115,10 +120,10 @@ void Texecom::checkDigiOutputs() {
 
         if (statePinFaultPresent == LOW) {
             alarmStateFlags |= ALARM_FAULT;
-            Log.error("Alarm is reporting a fault");
+            Log.println("Alarm is reporting a fault");
         } else {
             alarmStateFlags &= ~ALARM_FAULT;
-            Log.info("Alarm fault cleared");
+            Log.println("Alarm fault cleared");
         }
     }
 
@@ -131,10 +136,10 @@ void Texecom::checkDigiOutputs() {
 
         if (statePinArmFailed == LOW) {
             alarmStateFlags |= ALARM_ARM_FAILED;
-            Log.error("Alarm failed to arm");
+            Log.println("Alarm failed to arm");
         } else {
             alarmStateFlags &= ~ALARM_ARM_FAILED;
-            Log.error("Alarm arm failure cleared");
+            Log.println("Alarm arm failure cleared");
         }
     }
 
@@ -178,7 +183,8 @@ void Texecom::checkDigiOutputs() {
 
 }
 
-void Texecom::decodeZoneState(char *message) {
+void Texecom::decodeZoneState(char *message)
+{
     uint8_t zone;
     uint8_t state;
 
@@ -204,8 +210,8 @@ void Texecom::decodeZoneState(char *message) {
     zoneCallback(zone+firstZone, zoneStates[zone]);
 }
 
-bool Texecom::processCrestronMessage(char *message, uint8_t messageLength) {
-
+bool Texecom::processCrestronMessage(char *message, uint8_t messageLength)
+{
     // Zone state changed
     if (messageLength == 6 &&
         strncmp(message, msgZoneUpdate, strlen(msgZoneUpdate)) == 0) {
@@ -239,11 +245,10 @@ bool Texecom::processCrestronMessage(char *message, uint8_t messageLength) {
                 (strncmp(message, msgUserPinLogin, strlen(msgUserPinLogin)) == 0 ||
                 strncmp(message, msgUserTagLogin, strlen(msgUserTagLogin)) == 0)) {
         int user = message[4] - '0';
-
         if (user < userCount)
-            Log.info("User logged in: %s", users[user]);
+            Log.printf("User logged in: %s\n", users[user]);
         else
-            Log.info("User logged in: Outside of user array size");
+            Log.println("User logged in: Outside of user array size");
         return true;
     // Reply to ASTATUS request that the system is disarmed
     } else if (messageLength == 5 &&
@@ -294,7 +299,8 @@ bool Texecom::processCrestronMessage(char *message, uint8_t messageLength) {
     return false;
 }
 
-void Texecom::checkSerial() {
+void Texecom::checkSerial()
+{
     bool messageReady = false;
     uint8_t messageLength = 0;
 
@@ -335,7 +341,7 @@ void Texecom::checkSerial() {
     } // while (texSerial.available() > 0)
 
     if (bufferPosition > 0 && millis() > (messageStart+50)) {
-        Log.info("Message failed to receive within 50ms");
+        Log.println("Message failed to receive within 50ms");
         memcpy(message, buffer, bufferPosition);
         message[bufferPosition] = '\0';
         messageReady = true;
@@ -344,18 +350,21 @@ void Texecom::checkSerial() {
     }
 
     if (messageReady) {
-        Log.info(message);
+        Log.println(message);
 
         bool processedSuccessfully = false;
         processedSuccessfully = processCrestronMessage(message, messageLength);
 
         if (!processedSuccessfully) {
-            if (message[0] == '"') {
-                Log.info(String::format("Unknown Crestron command - %s", message));
-            } else {
-                Log.info("Unknown non-Crestron command - %s", message);
+            if (message[0] == '"')
+            {
+                Log.printf("Unknown Crestron command - %s\n", message);
+            }
+            else
+            {
+                Log.printf("Unknown non-Crestron command - %s\n", message);
                 for (uint8_t i = 0; i < messageLength; i++) {
-                    Log.info("%d\n", message[i]);
+                    Log.printf("%d\n", message[i]);
                 }
             }
         }

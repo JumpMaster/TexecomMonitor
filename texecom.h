@@ -3,9 +3,12 @@
 #ifndef __TEXECOM_H_
 #define __TEXECOM_H_
 
-#include "Particle.h"
+#include "Arduino.h"
+#include "Logging.h"
 
-#define texSerial Serial1
+#define texSerial Serial2
+#define RXD2 16
+#define TXD2 17
 
 #define firstZone 9 // Zone 1 = 1
 #define zoneCount 11 // 1 == 1
@@ -66,23 +69,23 @@ private:
   uint32_t nextPinCheck = 0;
 
 //  Digi Output - Argon Pin - Texecom Configuration
-//  1 ----------------- D12 - 22 Full Armed
-//  2 ----------------- D16 - 23 Part Armed
-//  3 ----------------- D13 - 19 Exit
-//  4 ----------------- D17 - 17 Entry
-//  5 ----------------- D14 - 00 Alarm
-//  6 ----------------- D18 - 27 Arm Failed
-//  7 ----------------- D15 - 66 Fault Present
-//  8 ----------------- D19 - 16 Area Ready
+//  1 ----------------- 26 - 22 Full Armed
+//  2 ----------------- 36 - 23 Part Armed
+//  3 ----------------- 25 - 19 Exit
+//  4 ----------------- 4  - 17 Entry
+//  5 ----------------- 34 - 00 Alarm
+//  6 ----------------- 5  - 27 Arm Failed
+//  7 ----------------- 39 - 66 Fault Present
+//  8 ----------------- 18 - 16 Area Ready
 
-  const int pinFullArmed = D12;
-  const int pinPartArmed = D16;
-  const int pinExit = D13;
-  const int pinEntry = D17;
-  const int pinTriggered = D14;
-  const int pinArmFailed = D18;
-  const int pinFaultPresent = D15;
-  const int pinAreaReady = D19;
+  const int pinFullArmed = 26;
+  const int pinPartArmed = 36;
+  const int pinExit = 25;
+  const int pinEntry = 4;
+  const int pinTriggered = 34;
+  const int pinArmFailed = 5;
+  const int pinFaultPresent = 39;
+  const int pinAreaReady = 18;
 
   bool statePinFullArmed = HIGH;
   bool statePinPartArmed = HIGH;

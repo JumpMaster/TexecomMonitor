@@ -1,9 +1,5 @@
-#include "mqtt.h"
-#include "papertrail.h"
-#include "Particle.h"
-#include "secrets.h"
-#include "DiagnosticsHelperRK.h"
-#include "texecom.h"
+#include "StandardFeatures.h"
+#include "TexecomMonitor.h"
 
 // Stubs
 void mqttCallback(char* topic, byte* payload, unsigned int length);
@@ -11,7 +7,7 @@ void zoneCallback(uint8_t zone, uint8_t state);
 void alarmCallback(Texecom::ALARM_STATE state, uint8_t flags);
 
 Texecom texecom(alarmCallback, zoneCallback);
-
+/*
 MQTT mqttClient(mqttServer, 1883, mqttCallback);
 uint32_t lastMqttConnectAttempt;
 const int mqttConnectAtemptTimeout1 = 5000;
@@ -60,8 +56,8 @@ void connectToMQTT() {
         Log.info("MQTT failed to connect");
     }
 }
-
-
+*/
+/*
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
     char p[length + 1];
     memcpy(p, payload, length);
@@ -79,7 +75,8 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
             Log.info("DST is inactive");
     }
 }
-
+*/
+/*
 uint32_t nextMetricsUpdate = 0;
 void sendTelegrafMetrics() {
     if (millis() > nextMetricsUpdate) {
@@ -98,7 +95,7 @@ void sendTelegrafMetrics() {
         mqttClient.publish("telegraf/particle", buffer);
     }
 }
-
+*/
 void zoneCallback(uint8_t zone, uint8_t state) {
 
     char attributesTopic[34];
@@ -113,14 +110,14 @@ void zoneCallback(uint8_t zone, uint8_t state) {
             (state & Texecom::ZONE_FAULT) != 0,
             (state & Texecom::ZONE_ALARMED) != 0);
 
-    if (mqttClient.isConnected()) {
+    if (mqttClient.connected()) {
         mqttClient.publish(attributesTopic, attributesMsg, true);
     }
 }
 
 void alarmCallback(Texecom::ALARM_STATE state, uint8_t flags) {
 
-    Log.info("Alarm: %s", alarmStateStrings[state]);
+    Log.printf("Alarm: %s\n", alarmStateStrings[state]);
 
     char message[58];
 
@@ -135,7 +132,7 @@ void alarmCallback(Texecom::ALARM_STATE state, uint8_t flags) {
 
     mqttClient.publish("home/security/alarm", message, true);
 }
-
+/*
 void random_seed_from_cloud(unsigned seed) {
     srand(seed);
 }
@@ -147,11 +144,12 @@ void startupMacro() {
     System.enableFeature(FEATURE_RETAINED_MEMORY);
 }
 STARTUP(startupMacro());
-
+*/
 void setup() {
 
+    StandardSetup();
     texecom.setup();
-
+/*
     waitFor(Particle.connected, 30000);
     
     do {
@@ -180,16 +178,19 @@ void setup() {
     Particle.publishVitals(900);
 
     WatchDoginitialize();
-
-    Log.info("Boot complete. Reset count = %d", resetCount);
-
+*/
+    Log.println("Setup complete");//. Reset count = %d", resetCount);
+/*
     connectToMQTT();
 
     uint32_t resetReasonData = System.resetReasonData();
     Particle.publish("pushover", String::format("ArgonAlarm: I am awake!: %d-%d", System.resetReason(), resetReasonData), PRIVATE);
+*/
 }
 
-void loop() {
+void loop()
+{
+/*
     if (mqttClient.isConnected()) {
         mqttClient.loop();
         sendTelegrafMetrics();
@@ -197,8 +198,9 @@ void loop() {
                  millis() > (lastMqttConnectAttempt + mqttConnectAtemptTimeout2)) {
         connectToMQTT();
     }
-
+*/
+    StandardLoop();
     texecom.loop();
 
-    WatchDogpet();
+//    WatchDogpet();
 }

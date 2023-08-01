@@ -4,14 +4,20 @@ secrets.h
 # Visual Studio Code
 .vscode
 
+# Arduino Compiled Firmware
+build/
+*.bin
+
 # Particle Compiled Firmware
-target/ 
+target/
 *.bin
 
 # Prerequisites
 *.d
 
 # Object files
+*.slo
+*.lo
 *.o
 *.ko
 *.obj
@@ -60,3 +66,6 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# Mac
+.DS_Store
