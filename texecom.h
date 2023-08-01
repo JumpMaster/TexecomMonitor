@@ -44,6 +44,7 @@ public:
   Texecom(void (*alarmCallback)(Texecom::ALARM_STATE, uint8_t), void (*zoneCallback)(uint8_t, uint8_t));
   void setup();
   void loop();
+
 private:
 
   void (*zoneCallback)(uint8_t, uint8_t);
