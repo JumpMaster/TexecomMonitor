@@ -70,23 +70,23 @@ private:
   uint32_t nextPinCheck = 0;
 
 //  Digi Output - Argon Pin - Texecom Configuration
-//  1 ----------------- 26 - 22 Full Armed
-//  2 ----------------- 36 - 23 Part Armed
-//  3 ----------------- 25 - 19 Exit
-//  4 ----------------- 4  - 17 Entry
-//  5 ----------------- 34 - 00 Alarm
-//  6 ----------------- 5  - 27 Arm Failed
-//  7 ----------------- 39 - 66 Fault Present
-//  8 ----------------- 18 - 16 Area Ready
+//  1 ----------------- 18 - 22 Full Armed
+//  2 ----------------- 39 - 23 Part Armed
+//  3 ----------------- 5  - 19 Exit
+//  4 ----------------- 34 - 17 Entry
+//  5 ----------------- 4  - 00 Alarm
+//  6 ----------------- 25 - 27 Arm Failed
+//  7 ----------------- 36 - 66 Fault Present
+//  8 ----------------- 26 - 16 Area Ready
 
-  const int pinFullArmed = 26;
-  const int pinPartArmed = 36;
-  const int pinExit = 25;
-  const int pinEntry = 4;
-  const int pinTriggered = 34;
-  const int pinArmFailed = 5;
-  const int pinFaultPresent = 39;
-  const int pinAreaReady = 18;
+  const int pinFullArmed = 18;
+  const int pinPartArmed = 39;
+  const int pinExit = 5;
+  const int pinEntry = 34;
+  const int pinTriggered = 4;
+  const int pinArmFailed = 25;
+  const int pinFaultPresent = 36;
+  const int pinAreaReady = 26;
 
   bool statePinFullArmed = HIGH;
   bool statePinPartArmed = HIGH;
