@@ -1,7 +1,7 @@
 #ifndef __LOGGING_H_
 #define __LOGGING_H_
 
-#define SYSLOG_SERVER   "lb.home.cooper.uk";
+#define SYSLOG_SERVER   "lb5.home.cooper.uk";
 #define SYSLOG_PORT     514
 #define APP_NAME        "TexecomMonitor-ESP32"
 
