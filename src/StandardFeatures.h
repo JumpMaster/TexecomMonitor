@@ -6,7 +6,6 @@
 #include <ArduinoOTA.h>
 #include "Logging.h"
 #include <PubSubClient.h>
-#include <Adafruit_NeoPixel.h>
 
 WiFiClient espClient;
 unsigned long wifiReconnectPreviousMillis = 0;
@@ -18,10 +17,26 @@ uint32_t nextMqttConnectAttempt = 0;
 const uint32_t mqttReconnectInterval = 10000;
 uint32_t nextMetricsUpdate = 0;
 bool mqttReconnected = false;
+bool OTA_RUNNING = false;
 
-const uint8_t ONBOARD_LED_PIN = 13;
+#ifdef DIAGNOSTIC_LED_PIN
+#include <Adafruit_NeoPixel.h>
+
+const uint8_t ONBOARD_LED_PIN = DIAGNOSTIC_LED_PIN;
 uint32_t nextOnboardLedUpdate = 0;
 bool onboardLedState = true;
+
+const uint32_t NEOPIXEL_BLACK =     0;
+const uint32_t NEOPIXEL_RED =       Adafruit_NeoPixel::Color(255, 0,   0);
+const uint32_t NEOPIXEL_ORANGE =    Adafruit_NeoPixel::Color(255, 140, 0);
+const uint32_t NEOPIXEL_YELLOW =    Adafruit_NeoPixel::Color(255, 255, 0);
+const uint32_t NEOPIXEL_MAGENTA =   Adafruit_NeoPixel::Color(255, 0,   255);
+const uint32_t NEOPIXEL_GREEN =     Adafruit_NeoPixel::Color(0,   255, 0);
+const uint32_t NEOPIXEL_CYAN =      Adafruit_NeoPixel::Color(0,   255, 255);
+const uint32_t NEOPIXEL_BLUE =      Adafruit_NeoPixel::Color(0,   0,   255);
+const uint32_t NEOPIXEL_WHITE =     Adafruit_NeoPixel::Color(255, 255, 255);
+
+#endif
 
 #ifdef DIAGNOSTIC_PIXEL_PIN
 Adafruit_NeoPixel diagnosticPixel(1, DIAGNOSTIC_PIXEL_PIN, NEO_GRB + NEO_KHZ800);
@@ -33,21 +48,14 @@ uint32_t diagnosticPixelColor1 = 0xFF0000;
 uint32_t diagnosticPixelColor2 = 0x000000;
 uint32_t currentDiagnosticPixelColor = diagnosticPixelColor1;
 uint32_t nextDiagnosticPixelUpdate = 0;
+uint32_t diagnosticPixelUpdateGap = 1500 / diagnosticPixelMaxBrightness;
 #endif
-
-const uint32_t NEOPIXEL_BLACK = 0;
-const uint32_t NEOPIXEL_RED =       Adafruit_NeoPixel::Color(255, 0,   0);
-const uint32_t NEOPIXEL_ORANGE =    Adafruit_NeoPixel::Color(255, 165, 0);
-const uint32_t NEOPIXEL_YELLOW =    Adafruit_NeoPixel::Color(255, 255, 0);
-const uint32_t NEOPIXEL_MAGENTA =   Adafruit_NeoPixel::Color(255, 0,   255);
-const uint32_t NEOPIXEL_GREEN =     Adafruit_NeoPixel::Color(0,   255, 0);
-const uint32_t NEOPIXEL_CYAN =      Adafruit_NeoPixel::Color(0,   255, 255);
-const uint32_t NEOPIXEL_BLUE =      Adafruit_NeoPixel::Color(0,   0,   255);
-const uint32_t NEOPIXEL_WHITE =     Adafruit_NeoPixel::Color(255, 255, 255);
 
 void connectToNetwork()
 {
     WiFi.mode(WIFI_STA);
+    WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
+    WiFi.setHostname(deviceName);
     WiFi.begin(wifiSSID, wifiPassword);
 
     if (WiFi.waitForConnectResult() == WL_CONNECTED && wifiReconnectCount == 0)
@@ -107,10 +115,12 @@ void mqttConnect()
 void setupOTA()
 {
     ArduinoOTA.setHostname(deviceName);
+    ArduinoOTA.setPassword(otaPassword);
   
     ArduinoOTA.onStart([]()
     {
         Log.println("OTA Start");
+        OTA_RUNNING = true;
         #ifdef DIAGNOSTIC_PIXEL_PIN
         diagnosticPixel.setPixelColor(0, NEOPIXEL_WHITE);
         diagnosticPixel.setBrightness(diagnosticPixelMaxBrightness);
@@ -121,6 +131,7 @@ void setupOTA()
     ArduinoOTA.onEnd([]()
     {
         Log.println("OTA End");
+        OTA_RUNNING = false;
     });
 
     ArduinoOTA.onProgress([](unsigned int progress, unsigned int total)
@@ -150,6 +161,7 @@ void setupOTA()
         {
             Log.println("End Failed");
         }
+        OTA_RUNNING = false;
     });
     
     ArduinoOTA.begin();
@@ -182,6 +194,12 @@ void setupDiagnosticPixel()
     diagnosticPixel.show();
 }
 
+void setMaxDiagnosticPixelBrightness(uint8_t brightness)
+{
+    diagnosticPixelMaxBrightness = brightness;
+    diagnosticPixelUpdateGap = 1500 / brightness;
+}
+
 void manageDiagnosticPixel()
 {
     if (millis() < nextDiagnosticPixelUpdate)
@@ -212,7 +230,7 @@ void manageDiagnosticPixel()
     diagnosticPixel.setBrightness(diagnosticPixelBrightness);
     diagnosticPixel.show();
 
-    nextDiagnosticPixelUpdate = millis() + 33; // 33 = 30 FPS
+    nextDiagnosticPixelUpdate = millis() + diagnosticPixelUpdateGap;
 }
 #endif
 
