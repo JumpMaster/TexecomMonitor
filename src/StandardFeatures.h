@@ -5,7 +5,10 @@
 #include <WiFi.h>
 #include <ArduinoOTA.h>
 #include "Logging.h"
+#include "Preferences.h"
 #include <PubSubClient.h>
+
+Preferences standardPreferences;
 
 WiFiClient espClient;
 unsigned long wifiReconnectPreviousMillis = 0;
@@ -18,13 +21,28 @@ const uint32_t mqttReconnectInterval = 10000;
 uint32_t nextMetricsUpdate = 0;
 bool mqttReconnected = false;
 bool OTA_RUNNING = false;
+bool ENABLE_WIFI = true;
+
+const char *prefBadBootCount = "bad_boot_count";
+const char *prefAppVersion = "app_version";
+const char *prefBootSuccess = "boot_success";
+
+const uint16_t safeModeGoodBootAfterTime = 30000;
+uint32_t safeModeSafeTime = 0;
+const uint8_t  safeModeBadBootTrigger = 3;
+bool safeModeBootIsGood = false;
+uint8_t safeModeBadBootCount = 0;
 
 #ifdef DIAGNOSTIC_LED_PIN
-#include <Adafruit_NeoPixel.h>
-
 const uint8_t ONBOARD_LED_PIN = DIAGNOSTIC_LED_PIN;
 uint32_t nextOnboardLedUpdate = 0;
 bool onboardLedState = true;
+#endif
+
+#ifdef DIAGNOSTIC_PIXEL_PIN
+#include <Adafruit_NeoPixel.h>
+
+Adafruit_NeoPixel diagnosticPixel(1, DIAGNOSTIC_PIXEL_PIN, NEO_GRB + NEO_KHZ800);
 
 const uint32_t NEOPIXEL_BLACK =     0;
 const uint32_t NEOPIXEL_RED =       Adafruit_NeoPixel::Color(255, 0,   0);
@@ -36,20 +54,18 @@ const uint32_t NEOPIXEL_CYAN =      Adafruit_NeoPixel::Color(0,   255, 255);
 const uint32_t NEOPIXEL_BLUE =      Adafruit_NeoPixel::Color(0,   0,   255);
 const uint32_t NEOPIXEL_WHITE =     Adafruit_NeoPixel::Color(255, 255, 255);
 
-#endif
-
-#ifdef DIAGNOSTIC_PIXEL_PIN
-Adafruit_NeoPixel diagnosticPixel(1, DIAGNOSTIC_PIXEL_PIN, NEO_GRB + NEO_KHZ800);
-
 uint8_t diagnosticPixelMaxBrightness = 64;
 uint8_t diagnosticPixelBrightness = diagnosticPixelMaxBrightness;
 bool diagnosticPixelBrightnessDirection = 0;
-uint32_t diagnosticPixelColor1 = 0xFF0000;
-uint32_t diagnosticPixelColor2 = 0x000000;
+uint32_t diagnosticPixelColor1 = NEOPIXEL_BLUE;
+uint32_t diagnosticPixelColor2 = NEOPIXEL_BLACK;
 uint32_t currentDiagnosticPixelColor = diagnosticPixelColor1;
 uint32_t nextDiagnosticPixelUpdate = 0;
 uint32_t diagnosticPixelUpdateGap = 1500 / diagnosticPixelMaxBrightness;
 #endif
+
+void StandardSetup();
+void StandardLoop();
 
 void connectToNetwork()
 {
@@ -116,7 +132,7 @@ void setupOTA()
 {
     ArduinoOTA.setHostname(deviceName);
     ArduinoOTA.setPassword(otaPassword);
-  
+
     ArduinoOTA.onStart([]()
     {
         Log.println("OTA Start");
@@ -167,11 +183,70 @@ void setupOTA()
     ArduinoOTA.begin();
 }
 
+void setupSafeMode()
+{
+    bool lastBootState = true; // Lets assume success
+    String lastAppVersion = standardPreferences.getString(prefAppVersion, "");
+
+    if (!lastAppVersion.equals(appVersion))
+    {
+        // If there's a new OS lets not judge it too quickly. Reset the bad boot count and lastBootState
+        standardPreferences.putString(prefAppVersion, appVersion);
+        standardPreferences.putUChar(prefBadBootCount, 0);
+    }
+    else
+    {
+        lastBootState = standardPreferences.getBool(prefBootSuccess, true);
+    }
+
+    if (!lastBootState)
+    {
+        safeModeBadBootCount = standardPreferences.getUChar(prefBadBootCount, 0) + 1;
+        Log.printf("bad_boot_count = %d\n", safeModeBadBootCount);
+        if (safeModeBadBootCount >= 3)
+        {
+            // This should be safe mode
+            Log.println("Entered safe mode");
+            while(true)
+            {
+                #ifdef DIAGNOSTIC_PIXEL_PIN
+                diagnosticPixelColor2 = NEOPIXEL_RED;
+                #endif
+                StandardLoop();
+            }
+        }
+        else
+        {
+            standardPreferences.putUChar(prefBadBootCount, safeModeBadBootCount);
+        }
+    }
+
+    // Write it's a bad boot and we'll say it's good after a defined period of time.
+    standardPreferences.putBool(prefBootSuccess, false);
+
+    safeModeSafeTime = millis() + safeModeGoodBootAfterTime;
+}
+
+void manageSafeMode()
+{
+    if (!safeModeBootIsGood && safeModeBadBootCount < safeModeBadBootTrigger && millis() > safeModeSafeTime)
+    {
+        safeModeBootIsGood = true;
+        standardPreferences.putBool(prefBootSuccess, true);
+        Log.println("Booted safely");
+
+        if (safeModeBadBootCount > 0)
+        {
+            standardPreferences.putUChar(prefBadBootCount, 0);
+        }
+    }
+}
+
 #ifdef DIAGNOSTIC_LED_PIN
 void setupDiagnosticLed()
 {
-    pinMode(NEOPIXEL_POWER, OUTPUT);
-    digitalWrite(NEOPIXEL_POWER, HIGH);
+    pinMode(ONBOARD_LED_PIN, OUTPUT);
+    digitalWrite(ONBOARD_LED_PIN, HIGH);
 }
 
 void manageDiagnosticLed()
@@ -189,7 +264,7 @@ void manageDiagnosticLed()
 void setupDiagnosticPixel()
 {   
     diagnosticPixel.begin();
-    diagnosticPixel.setPixelColor(0, NEOPIXEL_RED);
+    diagnosticPixel.setPixelColor(0, NEOPIXEL_BLUE);
     diagnosticPixel.setBrightness(diagnosticPixelMaxBrightness);
     diagnosticPixel.show();
 }
@@ -208,9 +283,9 @@ void manageDiagnosticPixel()
     if (mqttClient.connected())
         diagnosticPixelColor1 = NEOPIXEL_GREEN;
     else if (WiFi.status() == WL_CONNECTED)
-        diagnosticPixelColor1 = NEOPIXEL_BLUE;
+        diagnosticPixelColor1 = NEOPIXEL_ORANGE;
     else    
-        diagnosticPixelColor1 = NEOPIXEL_RED;
+        diagnosticPixelColor1 = NEOPIXEL_BLUE;
     
     if (diagnosticPixelBrightness <= 0)
     {
@@ -273,9 +348,39 @@ void manageMQTT()
     }
 }
 
+void startWiFi()
+{
+    ENABLE_WIFI = true;
+
+    Log.disableSyslog(false);
+
+    connectToNetwork();
+
+    setupOTA();
+
+    mqttConnect();
+}
+
+void stopWiFi()
+{
+    if (!ENABLE_WIFI)
+        return;
+
+    ENABLE_WIFI = false;
+
+    Log.disableSyslog(true);
+
+    ArduinoOTA.end();
+
+    mqttClient.disconnect();
+
+    WiFi.disconnect();
+}
 
 void StandardSetup()
 {
+    standardPreferences.begin("standardfeature", false);
+
     Log.setup();
 
     #ifdef DIAGNOSTIC_LED_PIN
@@ -288,20 +393,25 @@ void StandardSetup()
 
     setupMQTT();
 
-    connectToNetwork();
+    if (ENABLE_WIFI)
+    {
+        startWiFi();
+    }
 
-    setupOTA();
-
-    mqttConnect();
+    // Should always be last
+    setupSafeMode();
 }
 
 void StandardLoop()
 {
-    ArduinoOTA.handle();
+    if (ENABLE_WIFI)
+    {
+        ArduinoOTA.handle();
 
-    manageWiFi();
+        manageWiFi();
 
-    manageMQTT();
+        manageMQTT();
+    }
 
     #ifdef DIAGNOSTIC_LED_PIN
     manageDiagnosticLed();
@@ -310,6 +420,8 @@ void StandardLoop()
     #ifdef DIAGNOSTIC_PIXEL_PIN
     manageDiagnosticPixel();
     #endif
+
+    manageSafeMode();
 }
 
 #endif

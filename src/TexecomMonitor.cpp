@@ -1,4 +1,3 @@
-#include "StandardFeatures.h"
 #include "TexecomMonitor.h"
 
 // Stubs

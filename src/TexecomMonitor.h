@@ -1,6 +1,7 @@
 #ifndef TEXECOM_MONITOR_H
 #define TEXECOM_MONITOR_H
 
+#include "StandardFeatures.h"
 #include "secrets.h"
 #include "texecom.h"
 
