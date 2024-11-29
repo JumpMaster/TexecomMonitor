@@ -20,9 +20,9 @@ void zoneCallback(uint8_t zone, uint8_t state)
             (state & Texecom::ZONE_FAULT) != 0,
             (state & Texecom::ZONE_ALARMED) != 0);
 
-    if (mqttClient.connected())
+    if (standardFeatures.isMQTTConnected())
     {
-        mqttClient.publish(attributesTopic, attributesMsg, true);
+        standardFeatures.mqttPublish(attributesTopic, attributesMsg, true);
     }
 }
 
@@ -37,12 +37,23 @@ void alarmCallback(Texecom::ALARM_STATE state, uint8_t flags)
                 (flags & Texecom::ALARM_READY) != 0,
                 (flags & Texecom::ALARM_FAULT) != 0,
                 (flags & Texecom::ALARM_ARM_FAILED) != 0);
-    mqttClient.publish("home/security/alarm", message, true);
+    standardFeatures.mqttPublish("home/security/alarm", message, true);
 }
-
+/*
+void setupLocalMQTT()
+{
+}
+*/
 void setup()
 {
-    StandardSetup();
+    standardFeatures.enableLogging(deviceName, syslogServer, syslogPort);
+    standardFeatures.enableWiFi(wifiSSID, wifiPassword, deviceName);
+    standardFeatures.enableOTA(deviceName, otaPassword);
+    standardFeatures.enableSafeMode(appVersion);
+    standardFeatures.enableMQTT(mqttServer, mqttUsername, mqttPassword, deviceName);
+
+    //setupLocalMQTT();
+
     texecom.setup();
 
     Log.println("Setup complete");
@@ -50,6 +61,6 @@ void setup()
 
 void loop()
 {
-    StandardLoop();
+    standardFeatures.loop();
     texecom.loop();
 }
